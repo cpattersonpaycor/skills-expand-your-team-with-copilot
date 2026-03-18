@@ -499,12 +499,88 @@ document.addEventListener("DOMContentLoaded", () => {
     Object.entries(filteredActivities).forEach(([name, details]) => {
       renderActivityCard(name, details);
     });
+
+    // Highlight an activity opened via a share link
+    highlightSharedActivity();
+  }
+
+  // Build a shareable URL for an activity using the ?activity= query parameter
+  function getShareUrl(activityName) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("activity", activityName);
+    return url.toString();
+  }
+
+  // Open X (Twitter) share dialog for an activity
+  function shareOnTwitter(activityName) {
+    const shareUrl = getShareUrl(activityName);
+    const text = `Check out "${activityName}" at Mergington High School!`;
+    window.open(
+      `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl)}`,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  }
+
+  // Open Facebook share dialog for an activity
+  function shareOnFacebook(activityName) {
+    const shareUrl = getShareUrl(activityName);
+    window.open(
+      `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  }
+
+  // Open WhatsApp share for an activity
+  function shareOnWhatsApp(activityName) {
+    const shareUrl = getShareUrl(activityName);
+    const text = `Check out "${activityName}" at Mergington High School! ${shareUrl}`;
+    window.open(
+      `https://wa.me/?text=${encodeURIComponent(text)}`,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  }
+
+  // Copy the shareable link to the clipboard and give button feedback
+  async function copyActivityLink(activityName, copyButton) {
+    const shareUrl = getShareUrl(activityName);
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      const originalContent = copyButton.textContent;
+      copyButton.textContent = "✓";
+      copyButton.title = "Copied!";
+      setTimeout(() => {
+        copyButton.textContent = originalContent;
+        copyButton.title = "Copy link";
+      }, 2000);
+    } catch (error) {
+      showMessage("Could not copy link. Please try again.", "error");
+      console.error("Copy failed:", error);
+    }
+  }
+
+  // Scroll to and highlight an activity card that was opened via a share link
+  function highlightSharedActivity() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const sharedActivity = urlParams.get("activity");
+    if (!sharedActivity) return;
+
+    const cards = activitiesList.querySelectorAll(".activity-card");
+    cards.forEach((card) => {
+      if (card.dataset.activity === sharedActivity) {
+        card.classList.add("activity-highlighted");
+        card.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    });
   }
 
   // Function to render a single activity card
   function renderActivityCard(name, details) {
     const activityCard = document.createElement("div");
     activityCard.className = "activity-card";
+    activityCard.dataset.activity = name;
 
     // Calculate spots and capacity
     const totalSpots = details.max_participants;
@@ -598,6 +674,13 @@ document.addEventListener("DOMContentLoaded", () => {
         `
         }
       </div>
+      <div class="share-buttons">
+        <span class="share-label">Share:</span>
+        <button class="share-btn share-twitter" title="Share on X (Twitter)" aria-label="Share on X (Twitter)">X</button>
+        <button class="share-btn share-facebook" title="Share on Facebook" aria-label="Share on Facebook">f</button>
+        <button class="share-btn share-whatsapp" title="Share on WhatsApp" aria-label="Share on WhatsApp">💬</button>
+        <button class="share-btn share-copy" title="Copy link" aria-label="Copy link">🔗</button>
+      </div>
     `;
 
     // Add click handlers for delete buttons
@@ -615,6 +698,13 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       }
     }
+
+    // Add click handlers for share buttons
+    activityCard.querySelector(".share-twitter").addEventListener("click", () => shareOnTwitter(name));
+    activityCard.querySelector(".share-facebook").addEventListener("click", () => shareOnFacebook(name));
+    activityCard.querySelector(".share-whatsapp").addEventListener("click", () => shareOnWhatsApp(name));
+    const copyBtn = activityCard.querySelector(".share-copy");
+    copyBtn.addEventListener("click", () => copyActivityLink(name, copyBtn));
 
     activitiesList.appendChild(activityCard);
   }
